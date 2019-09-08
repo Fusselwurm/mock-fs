@@ -7,6 +7,7 @@ const Directory = require('../../lib/directory');
 const SymbolicLink = require('../../lib/symlink');
 const File = require('../../lib/file');
 const FileSystem = require('../../lib/filesystem');
+const Dirent = require('../../lib/dirent');
 const helper = require('../helper');
 const constants = require('constants');
 const bufferFrom = require('../../lib/buffer').from;
@@ -506,6 +507,75 @@ describe('Binding', function() {
           'two.txt'
         ]);
         done();
+      });
+    });
+
+    describe('with withFileTypes flag', function() {
+      describe('calls callback', function() {
+        it('with Dirent list', function(done) {
+          const binding = new Binding(system);
+          binding.readdir('mock-dir', 'utf-8', true, function(err, items) {
+            assert.isNull(err);
+            assert.isArray(items);
+            assert.deepEqual(items.length, 10);
+            items.forEach(function(item) {
+              assert.instanceOf(item, Dirent);
+            });
+            done();
+          });
+        });
+        it('with Dirent containing correct "name"', function(done) {
+          const binding = new Binding(system);
+          binding.readdir('mock-dir', 'utf-8', true, function(err, items) {
+            const names = items
+              .sort(function(a, b) {
+                return a.name.localeCompare(b.name);
+              })
+              .map(function(dirent) {
+                return dirent.name;
+              });
+            assert.deepEqual(names, [
+              'dead-link',
+              'dir-link',
+              'dir-link2',
+              'empty',
+              'non-empty',
+              'one-link.txt',
+              'one-link2.txt',
+              'one.txt',
+              'three.bin',
+              'two.txt'
+            ]);
+            done();
+          });
+        });
+        it('with Dirents containing correct stats', function() {
+          const binding = new Binding(system);
+          binding.readdir('mock-dir', 'utf-8', true, function(err, dirents) {
+            const twoTxt = dirents.find(function(dirent) {
+              return dirent.name === 'two.txt';
+            });
+            assert.isFalse(twoTxt.isDirectory(), 'isDirectory');
+            assert.isTrue(twoTxt.isFile(), 'isFile');
+            assert.isFalse(twoTxt.isBlockDevice(), 'isBlockDevice');
+            assert.isFalse(twoTxt.isCharacterDevice(), 'isCharacterDevice');
+            assert.isFalse(twoTxt.isSymbolicLink(), 'isSymbolicLink');
+            assert.isFalse(twoTxt.isFIFO(), 'isFIFO');
+            assert.isFalse(twoTxt.isSocket(), 'isSocket');
+          });
+        });
+      });
+      describe('returns (sync)', function() {
+        it('a Dirent list', function() {
+          const binding = new Binding(system);
+          const items = binding.readdir('mock-dir', 'utf-8', true);
+
+          assert.isArray(items);
+          assert.deepEqual(items.length, 10);
+          items.forEach(function(item) {
+            assert.instanceOf(item, Dirent);
+          });
+        });
       });
     });
 
